@@ -106,8 +106,8 @@ Resources:
 
 Outputs:
   EC2InstanceProfile:
-    Description: EC2 Instance Profile ARN
-    Value: !GetAtt EC2InstanceProfile.Arn
+    Description: EC2 Instance Profile Name
+    Value: !Ref EC2InstanceProfile
     Export:
       Name: !Sub ${EnvironmentName}-EC2InstanceProfile
 
