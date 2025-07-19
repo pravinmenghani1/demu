@@ -61,8 +61,8 @@ manual/
 ### 2. Clone This Repository
 
 ```bash
-git clone <your-repository-url>
-cd <repository-directory>
+git clone https://github.com/pravinmenghani1/ci-cd-demo.git
+cd ci-cd-demo-main
 ```
 
 ### 3. Push the Application Code to Your Repository
