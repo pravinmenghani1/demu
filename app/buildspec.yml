@@ -1,0 +1,40 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 14
+    commands:
+      - echo Installing dependencies...
+      - npm install -g htmlhint
+  
+  pre_build:
+    commands:
+      - echo Pre-build phase started on `date`
+      - echo Validating HTML files...
+      - find . -name "*.html" -exec htmlhint {} \; || true
+  
+  build:
+    commands:
+      - echo Build phase started on `date`
+      - echo Creating deployment package...
+      - mkdir -p build
+      - cp -r index.html build/ || echo "No index.html found"
+      - cp -r css/ build/ || echo "No css directory found"
+      - cp -r js/ build/ || echo "No js directory found"
+      - cp -r images/ build/ || echo "No images directory found"
+      - cp appspec.yml build/ || echo "No appspec.yml found"
+      - mkdir -p build/scripts
+      - cp -r scripts/* build/scripts/ || echo "No scripts found"
+      - chmod +x build/scripts/*.sh || echo "No scripts to make executable"
+      - cd build && zip -r ../application.zip *
+  
+  post_build:
+    commands:
+      - echo Build completed on `date`
+
+artifacts:
+  files:
+    - application.zip
+    - appspec.yml
+  base-directory: '.'

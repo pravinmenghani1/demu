@@ -1,0 +1,78 @@
+Complete CI/CD Pipeline Architecture
+====================================
+
++-------------------+     +-------------------+     +-------------------+
+|                   |     |                   |     |                   |
+|  GitHub           |     |  AWS CodeBuild    |     |  AWS CodeDeploy   |
+|  Repository       +---->+  Build & Test     +---->+  Deployment       |
+|                   |     |                   |     |                   |
++-------------------+     +-------------------+     +--------+----------+
+                                                             |
+                                                             |
+                                                             v
++-------------------+     +-------------------+     +-------------------+
+|                   |     |                   |     |                   |
+|  AWS CloudWatch   |     |  Application      |     |  Auto Scaling     |
+|  Monitoring       |<----+  Load Balancer    |<----+  Group            |
+|                   |     |                   |     |                   |
++-------------------+     +-------------------+     +-------------------+
+        ^                                                   ^
+        |                                                   |
+        |                                                   |
+        |                 +-------------------+             |
+        |                 |                   |             |
+        +-----------------+  Amazon EC2       +-------------+
+                          |  Instances        |
+                          |                   |
+                          +-------------------+
+
+Infrastructure Components
+========================
+
+1. Network Layer
+   - VPC with public subnets across 2 AZs
+   - Internet Gateway
+   - Route Tables
+
+2. Security Layer
+   - Security Groups for Load Balancer
+   - Security Groups for Web Servers
+   - IAM Roles with least privilege
+
+3. Compute Layer
+   - Auto Scaling Group
+   - EC2 Instances with CodeDeploy Agent
+   - Launch Template
+
+4. Delivery Layer
+   - CodePipeline for orchestration
+   - CodeBuild for building and testing
+   - CodeDeploy for deployment
+   - S3 Bucket for artifacts
+
+5. Access Layer
+   - Application Load Balancer
+   - Health Checks
+   - Target Groups
+
+CI/CD Workflow
+=============
+
+1. Developer pushes code to GitHub repository
+2. CodePipeline detects changes and starts the pipeline
+3. Source stage pulls the latest code from GitHub
+4. Build stage runs CodeBuild to:
+   - Validate HTML files
+   - Package application files
+   - Create deployment artifact
+5. Deploy stage uses CodeDeploy to:
+   - Deploy to EC2 instances in the Auto Scaling Group
+   - Run deployment lifecycle scripts
+   - Validate the deployment
+6. Application is accessible via the Load Balancer URL
+7. CloudWatch monitors the infrastructure and application
+
+---
+
+Created by Pravin Menghani with love for DevOps Automated Pipelines.
+Feel free to reach out at https://cloudcognoscente.com/contact for mentorship or any guidance.

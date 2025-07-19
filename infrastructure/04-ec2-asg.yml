@@ -1,0 +1,186 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CI/CD Demo - EC2 and Auto Scaling Group'
+
+Parameters:
+  EnvironmentName:
+    Description: Environment name that will be prefixed to resource names
+    Type: String
+    Default: CICDDemo
+  
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+      - t3.small
+  
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access (optional)
+    Type: String
+    Default: ""
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0261755bbcb8c4a84  # Ubuntu 22.04 LTS
+    us-east-2:
+      AMI: ami-0430580de6244e02e
+    us-west-1:
+      AMI: ami-0e83be366243f524a
+    us-west-2:
+      AMI: ami-04e914639d0cca79a
+    eu-west-1:
+      AMI: ami-0694d931cee176e7d
+    eu-central-1:
+      AMI: ami-0faab6bdbac9486fb
+    ap-northeast-1:
+      AMI: ami-0d52744d6551d851e
+    ap-southeast-1:
+      AMI: ami-0df7a207adb9748c7
+    ap-southeast-2:
+      AMI: ami-0310483fb2b488153
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
+
+Resources:
+  # Launch Template
+  WebServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${EnvironmentName}-WebServerLaunchTemplate
+      VersionDescription: Initial version
+      LaunchTemplateData:
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
+        InstanceType: !Ref InstanceType
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub ${EnvironmentName}-WebServerSG
+        KeyName: !If [HasKeyName, !Ref KeyName, !Ref "AWS::NoValue"]
+        IamInstanceProfile:
+          Name:
+            Fn::ImportValue: !Sub ${EnvironmentName}-EC2InstanceProfile
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+            # Update system packages
+            apt-get update -y
+            apt-get upgrade -y
+            
+            # Install required packages
+            apt-get install -y ruby wget apache2
+            
+            # Install CodeDeploy agent
+            cd /home/ubuntu
+            wget https://aws-codedeploy-${AWS::Region}.s3.amazonaws.com/latest/install
+            chmod +x ./install
+            ./install auto
+            service codedeploy-agent start
+            
+            # Configure Apache
+            systemctl enable apache2
+            systemctl start apache2
+            
+            # Create a simple index.html until deployment
+            echo "<html><body><h1>CI/CD Demo - Waiting for deployment</h1><p>Instance ID: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)</p></body></html>" > /var/www/html/index.html
+            
+            # Signal success
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerAutoScalingGroup --region ${AWS::Region}
+
+  # Auto Scaling Group
+  WebServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub ${EnvironmentName}-WebServerASG
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebServerLaunchTemplate
+        Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
+      MinSize: 2
+      MaxSize: 4
+      DesiredCapacity: 2
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PublicSubnet1
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PublicSubnet2
+      TargetGroupARNs:
+        - !Ref WebServerTargetGroup
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-WebServer
+          PropagateAtLaunch: true
+
+  # Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${EnvironmentName}-ALB
+      Subnets:
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PublicSubnet1
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PublicSubnet2
+      SecurityGroups:
+        - Fn::ImportValue: !Sub ${EnvironmentName}-LoadBalancerSG
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-ALB
+
+  # ALB Listener
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref WebServerTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  # Target Group
+  WebServerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${EnvironmentName}-WebServerTG
+      Port: 80
+      Protocol: HTTP
+      VpcId:
+        Fn::ImportValue: !Sub ${EnvironmentName}-VPC
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      TargetType: instance
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-WebServerTG
+
+  # Auto Scaling Policies
+  WebServerScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref WebServerAutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 70.0
+
+Outputs:
+  LoadBalancerDNS:
+    Description: DNS name of the load balancer
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub ${EnvironmentName}-LoadBalancerDNS
+
+  WebServerAutoScalingGroup:
+    Description: Auto Scaling Group Name
+    Value: !Ref WebServerAutoScalingGroup
+    Export:
+      Name: !Sub ${EnvironmentName}-WebServerASG
+
+  WebServerTargetGroup:
+    Description: Target Group ARN
+    Value: !Ref WebServerTargetGroup
+    Export:
+      Name: !Sub ${EnvironmentName}-WebServerTG
