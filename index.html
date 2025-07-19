@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CI/CD Demo Application</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .container {
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>CI/CD Demo Application</h1>
+        <p>Successfully deployed through AWS CodePipeline</p>
+    </header>
+    
+    <div class="container">
+        <h2>Welcome to the CI/CD Demo!</h2>
+        <p>This page was automatically deployed using:</p>
+        <ul>
+            <li>AWS CodePipeline</li>
+            <li>AWS CodeBuild</li>
+            <li>AWS CodeDeploy</li>
+            <li>GitHub Integration</li>
+        </ul>
+        <p>Deployment time: <span id="deployment-time"></span></p>
+    </div>
+    
+    <footer>
+        <p>© 2025 CI/CD Demo | Created for demonstration purposes</p>
+    </footer>
+
+    <script>
+        // Set the current date and time
+        document.getElementById('deployment-time').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>
