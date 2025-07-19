@@ -34,7 +34,7 @@ deploy_stack() {
     echo -e "${YELLOW}Deploying stack: ${stack_name}${NC}"
     
     # Check if stack exists
-    if aws cloudformation describe-stacks --stack-name ${stack_name} --region ${REGION} 2>&1 | grep -q 'Stack with id'; then
+    if aws cloudformation describe-stacks --stack-name ${stack_name} --region ${REGION} &>/dev/null; then
         # Update stack
         echo "Stack exists, updating..."
         aws cloudformation update-stack \
