@@ -62,7 +62,7 @@ manual/
 
 ```bash
 git clone https://github.com/pravinmenghani1/ci-cd-demo.git
-cd ci-cd-demo-main
+cd ci-cd-demo
 ```
 
 ### 3. Push the Application Code to Your Repository
